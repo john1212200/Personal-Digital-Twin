@@ -1,0 +1,1089 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"workspaceName": {
+			"type": "string",
+			"metadata": "Workspace name",
+			"defaultValue": "depitest1111workspace"
+		},
+		"depitest1111workspace-WorkspaceDefaultSqlServer_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'depitest1111workspace-WorkspaceDefaultSqlServer'",
+			"defaultValue": "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=tcp:depitest1111workspace.sql.azuresynapse.net,1433;Initial Catalog=@{linkedService().DBName}"
+		},
+		"depitest1111workspace-WorkspaceDefaultStorage_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://depitest1111.dfs.core.windows.net"
+		}
+	},
+	"variables": {
+		"workspaceId": "[concat('Microsoft.Synapse/workspaces/', parameters('workspaceName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('workspaceName'), '/depitest1111workspace-WorkspaceDefaultSqlServer')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"parameters": {
+					"DBName": {
+						"type": "String"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlDW",
+				"typeProperties": {
+					"connectionString": "[parameters('depitest1111workspace-WorkspaceDefaultSqlServer_connectionString')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/depitest1111workspace-WorkspaceDefaultStorage')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('depitest1111workspace-WorkspaceDefaultStorage_properties_typeProperties_url')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/AutoResolveIntegrationRuntime')]",
+			"type": "Microsoft.Synapse/workspaces/integrationRuntimes",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"type": "Managed",
+				"typeProperties": {
+					"computeProperties": {
+						"location": "AutoResolve",
+						"dataFlowProperties": {
+							"computeType": "General",
+							"coreCount": 8,
+							"timeToLive": 0
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/WorkspaceSystemIdentity')]",
+			"type": "Microsoft.Synapse/workspaces/credentials",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"type": "ManagedIdentity",
+				"typeProperties": {}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/personal_digital_twin_report')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "SELECT \n    d.department_name,\n    e.employee_name,\n    SUM(da.planned_tasks) AS total_planned_tasks,\n    SUM(da.completed_tasks) AS total_completed_tasks,\n    ROUND(AVG(da.sleep_duration_hours), 2) AS avg_sleep,\n    ROUND(AVG(da.productivity_score), 2) AS avg_productivity\nFROM DAILY_ACTIVITY da\nJOIN EMPLOYEE e \n    ON da.employee_id = e.employee_id\nJOIN DEPARTMENT d \n    ON e.department_id = d.department_id\nGROUP BY \n    d.department_name, \n    e.employee_name\nORDER BY \n    d.department_name, \n    avg_productivity DESC;",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "DedicatedSQLpool",
+						"poolName": "DedicatedSQLpool"
+					},
+					"resultLimit": -1
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/warehouse')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "CREATE SCHEMA dw;\nGO\n\nCREATE TABLE dw.DIM_DEPARTMENT (\n    department_id   INT          NOT NULL,\n    department_name VARCHAR(50)  NOT NULL\n)\nWITH (DISTRIBUTION = REPLICATE, CLUSTERED INDEX (department_id));\nALTER TABLE dw.DIM_DEPARTMENT ADD CONSTRAINT PK_DIM_DEPARTMENT\n    PRIMARY KEY NONCLUSTERED (department_id) NOT ENFORCED;\n\nCREATE TABLE dw.DIM_EMPLOYEE (\n    employee_id     VARCHAR(10)  NOT NULL,\n    employee_name   VARCHAR(50)  NOT NULL,\n    department_id   INT          NOT NULL\n)\nWITH (DISTRIBUTION = REPLICATE, CLUSTERED INDEX (employee_id));\nALTER TABLE dw.DIM_EMPLOYEE ADD CONSTRAINT PK_DIM_EMPLOYEE\n    PRIMARY KEY NONCLUSTERED (employee_id) NOT ENFORCED;\n\nCREATE TABLE dw.DIM_DATE (\n    [date]       DATE        NOT NULL,\n    day_of_week  VARCHAR(10) NOT NULL,\n    is_weekend   TINYINT     NOT NULL\n)\nWITH (DISTRIBUTION = REPLICATE, CLUSTERED INDEX ([date]));\nALTER TABLE dw.DIM_DATE ADD CONSTRAINT PK_DIM_DATE\n    PRIMARY KEY NONCLUSTERED ([date]) NOT ENFORCED;\n\nCREATE TABLE dw.FACT_DAILY_ACTIVITY (\n    employee_id            VARCHAR(10)  NOT NULL,\n    [date]                 DATE         NOT NULL,\n    sleep_duration_hours   DECIMAL(4,1) NOT NULL,\n    work_duration_hours    DECIMAL(4,1) NOT NULL,\n    physical_activity_min  SMALLINT     NOT NULL,\n    screen_time_hours      DECIMAL(4,1) NOT NULL,\n    planned_tasks          SMALLINT     NOT NULL,\n    completed_tasks        SMALLINT     NOT NULL,\n    task_completion_rate   DECIMAL(5,2) NOT NULL,\n    productivity_score     TINYINT      NOT NULL\n)\nWITH (DISTRIBUTION = HASH(employee_id), CLUSTERED COLUMNSTORE INDEX);\nALTER TABLE dw.FACT_DAILY_ACTIVITY ADD CONSTRAINT PK_FACT_DAILY_ACTIVITY\n    PRIMARY KEY NONCLUSTERED (employee_id, [date]) NOT ENFORCED;\n\n\n\n\n\n\n\nCOPY INTO dw.DIM_DEPARTMENT\nFROM 'https://depitest1111.dfs.core.windows.net/depitest1111systemfile/personal digital twin/DEPARTMENT.csv'\nWITH (FILE_TYPE='CSV', FIRSTROW=2, CREDENTIAL=(IDENTITY='Managed Identity'));\n\nCOPY INTO dw.DIM_EMPLOYEE\nFROM 'https://depitest1111.dfs.core.windows.net/depitest1111systemfile/personal digital twin/EMPLOYEE.csv'\nWITH (FILE_TYPE='CSV', FIRSTROW=2, CREDENTIAL=(IDENTITY='Managed Identity'));\n\nCOPY INTO dw.DIM_DATE\nFROM 'https://depitest1111.dfs.core.windows.net/depitest1111systemfile/personal digital twin/DATE.csv'\nWITH (FILE_TYPE='CSV', FIRSTROW=2, CREDENTIAL=(IDENTITY='Managed Identity'));\n\nCOPY INTO dw.FACT_DAILY_ACTIVITY\nFROM 'https://depitest1111.dfs.core.windows.net/depitest1111systemfile/personal digital twin/DAILY_ACTIVITY.csv'\nWITH (FILE_TYPE='CSV', FIRSTROW=2, CREDENTIAL=(IDENTITY='Managed Identity'));\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "DedicatedSQLpool",
+						"poolName": "DedicatedSQLpool"
+					},
+					"resultLimit": -1
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/personal_digital_twin')]",
+			"type": "Microsoft.Synapse/workspaces/databases",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"Ddls": [
+					{
+						"ActionType": "CREATE",
+						"OldEntity": null,
+						"NewEntity": {
+							"Name": "personal_digital_twin",
+							"EntityType": "DATABASE",
+							"Origin": {
+								"Type": "SPARK"
+							},
+							"Properties": {
+								"IsSyMSCDMDatabase": true
+							},
+							"Source": {
+								"Provider": "ADLS",
+								"Location": "abfss://depitest1111systemfile@depitest1111.dfs.core.windows.net/",
+								"Properties": {
+									"FormatType": "csv",
+									"LinkedServiceName": "depitest1111workspace-WorkspaceDefaultStorage"
+								}
+							},
+							"PublishStatus": "PUBLISHED",
+							"ObjectVersion": 2,
+							"ObjectId": "c70931f8-efb3-47fc-a0cc-e5d8ea80e2c8"
+						},
+						"Source": {
+							"Type": "SPARK"
+						}
+					},
+					{
+						"ActionType": "CREATE",
+						"OldEntity": null,
+						"NewEntity": {
+							"Name": "DAILY_ACTIVITY",
+							"EntityType": "TABLE",
+							"TableType": "EXTERNAL",
+							"Namespace": {
+								"SchemaName": null,
+								"DatabaseName": "personal_digital_twin",
+								"DatabaseId": null
+							},
+							"Partitioning": {
+								"PartitionFunctionType": null,
+								"Keys": null
+							},
+							"StorageDescriptor": {
+								"Distribution": null,
+								"Columns": [
+									{
+										"Name": "employee_id",
+										"Description": null,
+										"OriginDataTypeName": {
+											"TypeName": "string",
+											"IsComplexType": false,
+											"IsNullable": false,
+											"Length": 8000,
+											"Precision": 0,
+											"Scale": 0,
+											"Properties": {
+												"HIVE_TYPE_STRING": "string"
+											}
+										}
+									},
+									{
+										"Name": "date",
+										"Description": null,
+										"OriginDataTypeName": {
+											"TypeName": "date",
+											"IsComplexType": false,
+											"IsNullable": false,
+											"Length": 0,
+											"Precision": 0,
+											"Scale": 0,
+											"Properties": {
+												"DateFormat": "YYYY-MM-DD",
+												"HIVE_TYPE_STRING": "date"
+											}
+										}
+									},
+									{
+										"Name": "sleep_duration_hours",
+										"Description": null,
+										"OriginDataTypeName": {
+											"TypeName": "double",
+											"IsComplexType": false,
+											"IsNullable": true,
+											"Length": 0,
+											"Precision": 0,
+											"Scale": 0,
+											"Properties": {
+												"HIVE_TYPE_STRING": "double"
+											}
+										}
+									},
+									{
+										"Name": "work_duration_hours",
+										"Description": null,
+										"OriginDataTypeName": {
+											"TypeName": "double",
+											"IsComplexType": false,
+											"IsNullable": true,
+											"Length": 0,
+											"Precision": 0,
+											"Scale": 0,
+											"Properties": {
+												"HIVE_TYPE_STRING": "double"
+											}
+										}
+									},
+									{
+										"Name": "physical_activity_min",
+										"Description": null,
+										"OriginDataTypeName": {
+											"TypeName": "long",
+											"IsComplexType": false,
+											"IsNullable": true,
+											"Length": 0,
+											"Precision": 0,
+											"Scale": 0,
+											"Properties": {
+												"HIVE_TYPE_STRING": "long"
+											}
+										}
+									},
+									{
+										"Name": "screen_time_hours",
+										"Description": null,
+										"OriginDataTypeName": {
+											"TypeName": "double",
+											"IsComplexType": false,
+											"IsNullable": true,
+											"Length": 0,
+											"Precision": 0,
+											"Scale": 0,
+											"Properties": {
+												"HIVE_TYPE_STRING": "double"
+											}
+										}
+									},
+									{
+										"Name": "planned_tasks",
+										"Description": null,
+										"OriginDataTypeName": {
+											"TypeName": "long",
+											"IsComplexType": false,
+											"IsNullable": true,
+											"Length": 0,
+											"Precision": 0,
+											"Scale": 0,
+											"Properties": {
+												"HIVE_TYPE_STRING": "long"
+											}
+										}
+									},
+									{
+										"Name": "completed_tasks",
+										"Description": null,
+										"OriginDataTypeName": {
+											"TypeName": "long",
+											"IsComplexType": false,
+											"IsNullable": true,
+											"Length": 0,
+											"Precision": 0,
+											"Scale": 0,
+											"Properties": {
+												"HIVE_TYPE_STRING": "long"
+											}
+										}
+									},
+									{
+										"Name": "task_completion_rate",
+										"Description": null,
+										"OriginDataTypeName": {
+											"TypeName": "double",
+											"IsComplexType": false,
+											"IsNullable": true,
+											"Length": 0,
+											"Precision": 0,
+											"Scale": 0,
+											"Properties": {
+												"HIVE_TYPE_STRING": "double"
+											}
+										}
+									},
+									{
+										"Name": "productivity_score",
+										"Description": null,
+										"OriginDataTypeName": {
+											"TypeName": "long",
+											"IsComplexType": false,
+											"IsNullable": true,
+											"Length": 0,
+											"Precision": 0,
+											"Scale": 0,
+											"Properties": {
+												"HIVE_TYPE_STRING": "long"
+											}
+										}
+									}
+								],
+								"ColumnSetEntityName": "3c8e85b1-f7d1-4b2c-8acc-83c76d3de8a4",
+								"Format": {
+									"InputFormat": "org.apache.hadoop.mapred.SequenceFileInputFormat",
+									"OutputFormat": "org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat",
+									"FormatType": "csv",
+									"SerializeLib": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe",
+									"Properties": {
+										"path": "abfss://depitest1111systemfile@depitest1111.dfs.core.windows.net/personal digital twin/DAILY_ACTIVITY.csv",
+										"delimiter": ",",
+										"firstRowAsHeader": "true",
+										"multiLine": "false",
+										"serialization.format": "1",
+										"FormatTypeSetToDatabaseDefault": false,
+										"header": "true"
+									}
+								},
+								"Source": {
+									"Provider": "ADLS",
+									"Location": "abfss://depitest1111systemfile@depitest1111.dfs.core.windows.net/personal digital twin/DAILY_ACTIVITY.csv",
+									"Properties": {
+										"LinkedServiceName": "depitest1111workspace-WorkspaceDefaultStorage",
+										"LocationSetToDatabaseDefault": false
+									}
+								},
+								"Properties": {
+									"textinputformat.record.delimiter": ",",
+									"compression": "{\"type\":\"None\",\"level\":\"optimal\"}",
+									"derivedModelAttributeInfo": "{\"attributeReferences\":{}}"
+								},
+								"Compressed": false,
+								"SerDeInfo": null,
+								"IsStoredAsSubdirectories": false
+							},
+							"Owner": null,
+							"CreateTime": 0,
+							"LastAccessTime": 0,
+							"Retention": 0,
+							"Temporary": false,
+							"IsRewriteEnabled": false,
+							"ViewOriginalText": null,
+							"ViewExpandedText": null,
+							"Origin": {
+								"Type": "SPARK"
+							},
+							"OriginObjectId": null,
+							"IsSharedEntity": false,
+							"PublishStatus": "PUBLISHED",
+							"Properties": {
+								"Description": "",
+								"DisplayFolderInfo": "{\"name\":\"Others\",\"colorCode\":\"\"}",
+								"PrimaryKeys": "employee_id,date",
+								"spark.sql.sources.provider": "csv",
+								"spark.sql.sources.schema.numParts": "1",
+								"spark.sql.sources.schema.part.0": "{\"type\":\"struct\",\"fields\":[{\"name\":\"employee_id\",\"type\":\"string\",\"nullable\":false,\"metadata\":{}},{\"name\":\"date\",\"type\":\"date\",\"nullable\":false,\"metadata\":{}},{\"name\":\"sleep_duration_hours\",\"type\":\"double\",\"nullable\":true,\"metadata\":{}},{\"name\":\"work_duration_hours\",\"type\":\"double\",\"nullable\":true,\"metadata\":{}},{\"name\":\"physical_activity_min\",\"type\":\"long\",\"nullable\":true,\"metadata\":{}},{\"name\":\"screen_time_hours\",\"type\":\"double\",\"nullable\":true,\"metadata\":{}},{\"name\":\"planned_tasks\",\"type\":\"long\",\"nullable\":true,\"metadata\":{}},{\"name\":\"completed_tasks\",\"type\":\"long\",\"nullable\":true,\"metadata\":{}},{\"name\":\"task_completion_rate\",\"type\":\"double\",\"nullable\":true,\"metadata\":{}},{\"name\":\"productivity_score\",\"type\":\"long\",\"nullable\":true,\"metadata\":{}}]}",
+								"spark.sql.partitionProvider": "catalog"
+							},
+							"ObjectVersion": 2,
+							"ObjectId": "1776a3fa-8bad-4d62-bce9-93c441821bcc",
+							"Description": ""
+						},
+						"Source": {
+							"Type": "SPARK"
+						}
+					},
+					{
+						"ActionType": "CREATE",
+						"OldEntity": null,
+						"NewEntity": {
+							"Name": "DATE",
+							"EntityType": "TABLE",
+							"TableType": "EXTERNAL",
+							"Namespace": {
+								"SchemaName": null,
+								"DatabaseName": "personal_digital_twin",
+								"DatabaseId": null
+							},
+							"Partitioning": {
+								"PartitionFunctionType": null,
+								"Keys": null
+							},
+							"StorageDescriptor": {
+								"Distribution": null,
+								"Columns": [
+									{
+										"Name": "date",
+										"Description": null,
+										"OriginDataTypeName": {
+											"TypeName": "date",
+											"IsComplexType": false,
+											"IsNullable": false,
+											"Length": 0,
+											"Precision": 0,
+											"Scale": 0,
+											"Properties": {
+												"DateFormat": "YYYY-MM-DD",
+												"HIVE_TYPE_STRING": "date"
+											}
+										}
+									},
+									{
+										"Name": "day_of_week",
+										"Description": null,
+										"OriginDataTypeName": {
+											"TypeName": "string",
+											"IsComplexType": false,
+											"IsNullable": true,
+											"Length": 8000,
+											"Precision": 0,
+											"Scale": 0,
+											"Properties": {
+												"HIVE_TYPE_STRING": "string"
+											}
+										}
+									},
+									{
+										"Name": "is_weekend",
+										"Description": null,
+										"OriginDataTypeName": {
+											"TypeName": "long",
+											"IsComplexType": false,
+											"IsNullable": true,
+											"Length": 0,
+											"Precision": 0,
+											"Scale": 0,
+											"Properties": {
+												"HIVE_TYPE_STRING": "long"
+											}
+										}
+									}
+								],
+								"ColumnSetEntityName": "7406f535-f4fd-44f2-9e47-ea798cbab2e3",
+								"Format": {
+									"InputFormat": "org.apache.hadoop.mapred.SequenceFileInputFormat",
+									"OutputFormat": "org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat",
+									"FormatType": "csv",
+									"SerializeLib": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe",
+									"Properties": {
+										"path": "abfss://depitest1111systemfile@depitest1111.dfs.core.windows.net/personal digital twin/DATE.csv",
+										"delimiter": ",",
+										"firstRowAsHeader": "true",
+										"multiLine": "false",
+										"serialization.format": "1",
+										"FormatTypeSetToDatabaseDefault": false,
+										"header": "true"
+									}
+								},
+								"Source": {
+									"Provider": "ADLS",
+									"Location": "abfss://depitest1111systemfile@depitest1111.dfs.core.windows.net/personal digital twin/DATE.csv",
+									"Properties": {
+										"LinkedServiceName": "depitest1111workspace-WorkspaceDefaultStorage",
+										"LocationSetToDatabaseDefault": false
+									}
+								},
+								"Properties": {
+									"textinputformat.record.delimiter": ",",
+									"compression": "{\"type\":\"None\",\"level\":\"optimal\"}",
+									"derivedModelAttributeInfo": "{\"attributeReferences\":{}}"
+								},
+								"Compressed": false,
+								"SerDeInfo": null,
+								"IsStoredAsSubdirectories": false
+							},
+							"Owner": null,
+							"CreateTime": 0,
+							"LastAccessTime": 0,
+							"Retention": 0,
+							"Temporary": false,
+							"IsRewriteEnabled": false,
+							"ViewOriginalText": null,
+							"ViewExpandedText": null,
+							"Origin": {
+								"Type": "SPARK"
+							},
+							"OriginObjectId": null,
+							"IsSharedEntity": false,
+							"PublishStatus": "PUBLISHED",
+							"Properties": {
+								"Description": "",
+								"DisplayFolderInfo": "{\"name\":\"Others\",\"colorCode\":\"\"}",
+								"PrimaryKeys": "date",
+								"spark.sql.sources.provider": "csv",
+								"spark.sql.sources.schema.numParts": "1",
+								"spark.sql.sources.schema.part.0": "{\"type\":\"struct\",\"fields\":[{\"name\":\"date\",\"type\":\"date\",\"nullable\":false,\"metadata\":{}},{\"name\":\"day_of_week\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"is_weekend\",\"type\":\"long\",\"nullable\":true,\"metadata\":{}}]}",
+								"spark.sql.partitionProvider": "catalog"
+							},
+							"ObjectVersion": 2,
+							"ObjectId": "f2ef9a75-b328-4ea3-a3fe-53ce1c9ad22b",
+							"Description": ""
+						},
+						"Source": {
+							"Type": "SPARK"
+						}
+					},
+					{
+						"ActionType": "CREATE",
+						"OldEntity": null,
+						"NewEntity": {
+							"Name": "DEPARTMENT",
+							"EntityType": "TABLE",
+							"TableType": "EXTERNAL",
+							"Namespace": {
+								"SchemaName": null,
+								"DatabaseName": "personal_digital_twin",
+								"DatabaseId": null
+							},
+							"Partitioning": {
+								"PartitionFunctionType": null,
+								"Keys": null
+							},
+							"StorageDescriptor": {
+								"Distribution": null,
+								"Columns": [
+									{
+										"Name": "department_id",
+										"Description": null,
+										"OriginDataTypeName": {
+											"TypeName": "long",
+											"IsComplexType": false,
+											"IsNullable": false,
+											"Length": 0,
+											"Precision": 0,
+											"Scale": 0,
+											"Properties": {
+												"HIVE_TYPE_STRING": "long"
+											}
+										}
+									},
+									{
+										"Name": "department_name",
+										"Description": null,
+										"OriginDataTypeName": {
+											"TypeName": "string",
+											"IsComplexType": false,
+											"IsNullable": true,
+											"Length": 8000,
+											"Precision": 0,
+											"Scale": 0,
+											"Properties": {
+												"HIVE_TYPE_STRING": "string"
+											}
+										}
+									}
+								],
+								"ColumnSetEntityName": "5ae2ecb7-abba-4bb4-8d02-6fb280bedde2",
+								"Format": {
+									"InputFormat": "org.apache.hadoop.mapred.SequenceFileInputFormat",
+									"OutputFormat": "org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat",
+									"FormatType": "csv",
+									"SerializeLib": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe",
+									"Properties": {
+										"path": "abfss://depitest1111systemfile@depitest1111.dfs.core.windows.net/personal digital twin/DEPARTMENT.csv",
+										"delimiter": ",",
+										"firstRowAsHeader": "true",
+										"multiLine": "false",
+										"serialization.format": "1",
+										"FormatTypeSetToDatabaseDefault": false,
+										"header": "true"
+									}
+								},
+								"Source": {
+									"Provider": "ADLS",
+									"Location": "abfss://depitest1111systemfile@depitest1111.dfs.core.windows.net/personal digital twin/DEPARTMENT.csv",
+									"Properties": {
+										"LinkedServiceName": "depitest1111workspace-WorkspaceDefaultStorage",
+										"LocationSetToDatabaseDefault": false
+									}
+								},
+								"Properties": {
+									"textinputformat.record.delimiter": ",",
+									"compression": "{\"type\":\"None\",\"level\":\"optimal\"}",
+									"derivedModelAttributeInfo": "{\"attributeReferences\":{}}"
+								},
+								"Compressed": false,
+								"SerDeInfo": null,
+								"IsStoredAsSubdirectories": false
+							},
+							"Owner": null,
+							"CreateTime": 0,
+							"LastAccessTime": 0,
+							"Retention": 0,
+							"Temporary": false,
+							"IsRewriteEnabled": false,
+							"ViewOriginalText": null,
+							"ViewExpandedText": null,
+							"Origin": {
+								"Type": "SPARK"
+							},
+							"OriginObjectId": null,
+							"IsSharedEntity": false,
+							"PublishStatus": "PUBLISHED",
+							"Properties": {
+								"Description": "",
+								"DisplayFolderInfo": "{\"name\":\"Others\",\"colorCode\":\"\"}",
+								"PrimaryKeys": "department_id",
+								"spark.sql.sources.provider": "csv",
+								"spark.sql.sources.schema.numParts": "1",
+								"spark.sql.sources.schema.part.0": "{\"type\":\"struct\",\"fields\":[{\"name\":\"department_id\",\"type\":\"long\",\"nullable\":false,\"metadata\":{}},{\"name\":\"department_name\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}}]}",
+								"spark.sql.partitionProvider": "catalog"
+							},
+							"ObjectVersion": 2,
+							"ObjectId": "2c901cfc-b080-4535-a8ce-27f5d7d45855",
+							"Description": ""
+						},
+						"Source": {
+							"Type": "SPARK"
+						}
+					},
+					{
+						"ActionType": "CREATE",
+						"OldEntity": null,
+						"NewEntity": {
+							"Name": "DEPARTMENT_SUMMARY",
+							"EntityType": "TABLE",
+							"TableType": "EXTERNAL",
+							"Namespace": {
+								"SchemaName": null,
+								"DatabaseName": "personal_digital_twin",
+								"DatabaseId": null
+							},
+							"Partitioning": {
+								"PartitionFunctionType": null,
+								"Keys": null
+							},
+							"StorageDescriptor": {
+								"Distribution": null,
+								"Columns": [
+									{
+										"Name": "department_id",
+										"Description": null,
+										"OriginDataTypeName": {
+											"TypeName": "long",
+											"IsComplexType": false,
+											"IsNullable": false,
+											"Length": 0,
+											"Precision": 0,
+											"Scale": 0,
+											"Properties": {
+												"HIVE_TYPE_STRING": "long"
+											}
+										}
+									},
+									{
+										"Name": "total_employees",
+										"Description": null,
+										"OriginDataTypeName": {
+											"TypeName": "long",
+											"IsComplexType": false,
+											"IsNullable": true,
+											"Length": 0,
+											"Precision": 0,
+											"Scale": 0,
+											"Properties": {
+												"HIVE_TYPE_STRING": "long"
+											}
+										}
+									},
+									{
+										"Name": "avg_sleep_hours",
+										"Description": null,
+										"OriginDataTypeName": {
+											"TypeName": "double",
+											"IsComplexType": false,
+											"IsNullable": true,
+											"Length": 0,
+											"Precision": 0,
+											"Scale": 0,
+											"Properties": {
+												"HIVE_TYPE_STRING": "double"
+											}
+										}
+									},
+									{
+										"Name": "avg_work_hours",
+										"Description": null,
+										"OriginDataTypeName": {
+											"TypeName": "double",
+											"IsComplexType": false,
+											"IsNullable": true,
+											"Length": 0,
+											"Precision": 0,
+											"Scale": 0,
+											"Properties": {
+												"HIVE_TYPE_STRING": "double"
+											}
+										}
+									},
+									{
+										"Name": "avg_productivity",
+										"Description": null,
+										"OriginDataTypeName": {
+											"TypeName": "double",
+											"IsComplexType": false,
+											"IsNullable": true,
+											"Length": 0,
+											"Precision": 0,
+											"Scale": 0,
+											"Properties": {
+												"HIVE_TYPE_STRING": "double"
+											}
+										}
+									},
+									{
+										"Name": "avg_task_completion",
+										"Description": null,
+										"OriginDataTypeName": {
+											"TypeName": "double",
+											"IsComplexType": false,
+											"IsNullable": true,
+											"Length": 0,
+											"Precision": 0,
+											"Scale": 0,
+											"Properties": {
+												"HIVE_TYPE_STRING": "double"
+											}
+										}
+									}
+								],
+								"ColumnSetEntityName": "e1bc829a-27ba-4895-8ec1-5053c9fafc3f",
+								"Format": {
+									"InputFormat": "org.apache.hadoop.mapred.SequenceFileInputFormat",
+									"OutputFormat": "org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat",
+									"FormatType": "csv",
+									"SerializeLib": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe",
+									"Properties": {
+										"path": "abfss://depitest1111systemfile@depitest1111.dfs.core.windows.net/personal digital twin/DEPARTMENT_SUMMARY.csv",
+										"delimiter": ",",
+										"firstRowAsHeader": "true",
+										"multiLine": "false",
+										"serialization.format": "1",
+										"FormatTypeSetToDatabaseDefault": false,
+										"header": "true"
+									}
+								},
+								"Source": {
+									"Provider": "ADLS",
+									"Location": "abfss://depitest1111systemfile@depitest1111.dfs.core.windows.net/personal digital twin/DEPARTMENT_SUMMARY.csv",
+									"Properties": {
+										"LinkedServiceName": "depitest1111workspace-WorkspaceDefaultStorage",
+										"LocationSetToDatabaseDefault": false
+									}
+								},
+								"Properties": {
+									"textinputformat.record.delimiter": ",",
+									"compression": "{\"type\":\"None\",\"level\":\"optimal\"}",
+									"derivedModelAttributeInfo": "{\"attributeReferences\":{}}"
+								},
+								"Compressed": false,
+								"SerDeInfo": null,
+								"IsStoredAsSubdirectories": false
+							},
+							"Owner": null,
+							"CreateTime": 0,
+							"LastAccessTime": 0,
+							"Retention": 0,
+							"Temporary": false,
+							"IsRewriteEnabled": false,
+							"ViewOriginalText": null,
+							"ViewExpandedText": null,
+							"Origin": {
+								"Type": "SPARK"
+							},
+							"OriginObjectId": null,
+							"IsSharedEntity": false,
+							"PublishStatus": "PUBLISHED",
+							"Properties": {
+								"Description": "",
+								"DisplayFolderInfo": "{\"name\":\"Others\",\"colorCode\":\"\"}",
+								"PrimaryKeys": "department_id",
+								"spark.sql.sources.provider": "csv",
+								"spark.sql.sources.schema.numParts": "1",
+								"spark.sql.sources.schema.part.0": "{\"type\":\"struct\",\"fields\":[{\"name\":\"department_id\",\"type\":\"long\",\"nullable\":false,\"metadata\":{}},{\"name\":\"total_employees\",\"type\":\"long\",\"nullable\":true,\"metadata\":{}},{\"name\":\"avg_sleep_hours\",\"type\":\"double\",\"nullable\":true,\"metadata\":{}},{\"name\":\"avg_work_hours\",\"type\":\"double\",\"nullable\":true,\"metadata\":{}},{\"name\":\"avg_productivity\",\"type\":\"double\",\"nullable\":true,\"metadata\":{}},{\"name\":\"avg_task_completion\",\"type\":\"double\",\"nullable\":true,\"metadata\":{}}]}",
+								"spark.sql.partitionProvider": "catalog"
+							},
+							"ObjectVersion": 2,
+							"ObjectId": "d5cf0af0-461d-45c8-b195-d24342472da2",
+							"Description": ""
+						},
+						"Source": {
+							"Type": "SPARK"
+						}
+					},
+					{
+						"ActionType": "CREATE",
+						"OldEntity": null,
+						"NewEntity": {
+							"Name": "EMPLOYEE",
+							"EntityType": "TABLE",
+							"TableType": "EXTERNAL",
+							"Namespace": {
+								"SchemaName": null,
+								"DatabaseName": "personal_digital_twin",
+								"DatabaseId": null
+							},
+							"Partitioning": {
+								"PartitionFunctionType": null,
+								"Keys": null
+							},
+							"StorageDescriptor": {
+								"Distribution": null,
+								"Columns": [
+									{
+										"Name": "employee_id",
+										"Description": null,
+										"OriginDataTypeName": {
+											"TypeName": "string",
+											"IsComplexType": false,
+											"IsNullable": false,
+											"Length": 8000,
+											"Precision": 0,
+											"Scale": 0,
+											"Properties": {
+												"HIVE_TYPE_STRING": "string"
+											}
+										}
+									},
+									{
+										"Name": "employee_name",
+										"Description": null,
+										"OriginDataTypeName": {
+											"TypeName": "string",
+											"IsComplexType": false,
+											"IsNullable": true,
+											"Length": 8000,
+											"Precision": 0,
+											"Scale": 0,
+											"Properties": {
+												"HIVE_TYPE_STRING": "string"
+											}
+										}
+									},
+									{
+										"Name": "department_id",
+										"Description": null,
+										"OriginDataTypeName": {
+											"TypeName": "long",
+											"IsComplexType": false,
+											"IsNullable": true,
+											"Length": 0,
+											"Precision": 0,
+											"Scale": 0,
+											"Properties": {
+												"HIVE_TYPE_STRING": "long"
+											}
+										}
+									}
+								],
+								"ColumnSetEntityName": "8a21bdec-0198-4f5f-8fbb-37af0df2d772",
+								"Format": {
+									"InputFormat": "org.apache.hadoop.mapred.SequenceFileInputFormat",
+									"OutputFormat": "org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat",
+									"FormatType": "csv",
+									"SerializeLib": "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe",
+									"Properties": {
+										"path": "abfss://depitest1111systemfile@depitest1111.dfs.core.windows.net/personal digital twin/EMPLOYEE.csv",
+										"delimiter": ",",
+										"firstRowAsHeader": "true",
+										"multiLine": "false",
+										"serialization.format": "1",
+										"FormatTypeSetToDatabaseDefault": false,
+										"header": "true"
+									}
+								},
+								"Source": {
+									"Provider": "ADLS",
+									"Location": "abfss://depitest1111systemfile@depitest1111.dfs.core.windows.net/personal digital twin/EMPLOYEE.csv",
+									"Properties": {
+										"LinkedServiceName": "depitest1111workspace-WorkspaceDefaultStorage",
+										"LocationSetToDatabaseDefault": false
+									}
+								},
+								"Properties": {
+									"textinputformat.record.delimiter": ",",
+									"compression": "{\"type\":\"None\",\"level\":\"optimal\"}",
+									"derivedModelAttributeInfo": "{\"attributeReferences\":{}}"
+								},
+								"Compressed": false,
+								"SerDeInfo": null,
+								"IsStoredAsSubdirectories": false
+							},
+							"Owner": null,
+							"CreateTime": 0,
+							"LastAccessTime": 0,
+							"Retention": 0,
+							"Temporary": false,
+							"IsRewriteEnabled": false,
+							"ViewOriginalText": null,
+							"ViewExpandedText": null,
+							"Origin": {
+								"Type": "SPARK"
+							},
+							"OriginObjectId": null,
+							"IsSharedEntity": false,
+							"PublishStatus": "PUBLISHED",
+							"Properties": {
+								"Description": "",
+								"DisplayFolderInfo": "{\"name\":\"Others\",\"colorCode\":\"\"}",
+								"PrimaryKeys": "employee_id",
+								"spark.sql.sources.provider": "csv",
+								"spark.sql.sources.schema.numParts": "1",
+								"spark.sql.sources.schema.part.0": "{\"type\":\"struct\",\"fields\":[{\"name\":\"employee_id\",\"type\":\"string\",\"nullable\":false,\"metadata\":{}},{\"name\":\"employee_name\",\"type\":\"string\",\"nullable\":true,\"metadata\":{}},{\"name\":\"department_id\",\"type\":\"long\",\"nullable\":true,\"metadata\":{}}]}",
+								"spark.sql.partitionProvider": "catalog"
+							},
+							"ObjectVersion": 2,
+							"ObjectId": "0bcd874b-dd74-46ac-a890-7b88b42a7e09",
+							"Description": ""
+						},
+						"Source": {
+							"Type": "SPARK"
+						}
+					},
+					{
+						"ActionType": "CREATE",
+						"OldEntity": null,
+						"NewEntity": {
+							"Name": "relationship-dwteljprjt",
+							"EntityType": "RELATIONSHIP",
+							"Namespace": {
+								"DatabaseName": "personal_digital_twin"
+							},
+							"Origin": {
+								"Type": "SPARK"
+							},
+							"FromTableName": "DEPARTMENT",
+							"ToTableName": "EMPLOYEE",
+							"ColumnRelationshipInformations": [
+								{
+									"FromColumnName": "department_id",
+									"ToColumnName": "department_id"
+								}
+							],
+							"RelationshipType": 0,
+							"PublishStatus": "PUBLISHED",
+							"ObjectVersion": 1,
+							"ObjectId": "51fcec47-7b39-445c-8a7d-b0f41c49ee09",
+							"Properties": {}
+						},
+						"Source": {
+							"Type": "SPARK"
+						}
+					},
+					{
+						"ActionType": "CREATE",
+						"OldEntity": null,
+						"NewEntity": {
+							"Name": "relationship-gppjdywcrh",
+							"EntityType": "RELATIONSHIP",
+							"Namespace": {
+								"DatabaseName": "personal_digital_twin"
+							},
+							"Origin": {
+								"Type": "SPARK"
+							},
+							"FromTableName": "DATE",
+							"ToTableName": "DAILY_ACTIVITY",
+							"ColumnRelationshipInformations": [
+								{
+									"FromColumnName": "date",
+									"ToColumnName": "date"
+								}
+							],
+							"RelationshipType": 0,
+							"PublishStatus": "PUBLISHED",
+							"ObjectVersion": 1,
+							"ObjectId": "c4af06c3-291d-4c7c-b9e5-9296b7bcb7c8",
+							"Properties": {}
+						},
+						"Source": {
+							"Type": "SPARK"
+						}
+					},
+					{
+						"ActionType": "CREATE",
+						"OldEntity": null,
+						"NewEntity": {
+							"Name": "relationship-mhvmhbpwgc",
+							"EntityType": "RELATIONSHIP",
+							"Namespace": {
+								"DatabaseName": "personal_digital_twin"
+							},
+							"Origin": {
+								"Type": "SPARK"
+							},
+							"FromTableName": "EMPLOYEE",
+							"ToTableName": "DAILY_ACTIVITY",
+							"ColumnRelationshipInformations": [
+								{
+									"FromColumnName": "employee_id",
+									"ToColumnName": "employee_id"
+								}
+							],
+							"RelationshipType": 0,
+							"PublishStatus": "PUBLISHED",
+							"ObjectVersion": 1,
+							"ObjectId": "bd5775a2-45b5-4ccd-94a3-88a9579f11b3",
+							"Properties": {}
+						},
+						"Source": {
+							"Type": "SPARK"
+						}
+					},
+					{
+						"ActionType": "CREATE",
+						"OldEntity": null,
+						"NewEntity": {
+							"Name": "relationship-xppqrkqcmv",
+							"EntityType": "RELATIONSHIP",
+							"Namespace": {
+								"DatabaseName": "personal_digital_twin"
+							},
+							"Origin": {
+								"Type": "SPARK"
+							},
+							"FromTableName": "DEPARTMENT",
+							"ToTableName": "DEPARTMENT_SUMMARY",
+							"ColumnRelationshipInformations": [
+								{
+									"FromColumnName": "department_id",
+									"ToColumnName": "department_id"
+								}
+							],
+							"RelationshipType": 0,
+							"PublishStatus": "PUBLISHED",
+							"ObjectVersion": 1,
+							"ObjectId": "362f671e-61bc-4a52-afb7-ec802e29277d",
+							"Properties": {}
+						},
+						"Source": {
+							"Type": "SPARK"
+						}
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/DedicatedSQLpool')]",
+			"type": "Microsoft.Synapse/workspaces/sqlPools",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"collation": "SQL_Latin1_General_CP1_CI_AS",
+				"maxSizeBytes": 263882790666240,
+				"annotations": []
+			},
+			"dependsOn": [],
+			"location": "uaenorth"
+		}
+	]
+}
