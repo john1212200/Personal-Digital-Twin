@@ -1,0 +1,17 @@
+{
+	"name": "personal_digital_twin_report",
+	"properties": {
+		"content": {
+			"query": "SELECT \n    d.department_name,\n    e.employee_name,\n    SUM(da.planned_tasks) AS total_planned_tasks,\n    SUM(da.completed_tasks) AS total_completed_tasks,\n    ROUND(AVG(da.sleep_duration_hours), 2) AS avg_sleep,\n    ROUND(AVG(da.productivity_score), 2) AS avg_productivity\nFROM DAILY_ACTIVITY da\nJOIN EMPLOYEE e \n    ON da.employee_id = e.employee_id\nJOIN DEPARTMENT d \n    ON e.department_id = d.department_id\nGROUP BY \n    d.department_name, \n    e.employee_name\nORDER BY \n    d.department_name, \n    avg_productivity DESC;",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "DedicatedSQLpool",
+				"poolName": "DedicatedSQLpool"
+			},
+			"resultLimit": -1
+		},
+		"type": "SqlQuery"
+	}
+}

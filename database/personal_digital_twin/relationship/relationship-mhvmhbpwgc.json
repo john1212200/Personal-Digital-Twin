@@ -1,0 +1,26 @@
+{
+	"name": "relationship-mhvmhbpwgc",
+	"properties": {
+		"Name": "relationship-mhvmhbpwgc",
+		"EntityType": "RELATIONSHIP",
+		"Namespace": {
+			"DatabaseName": "personal_digital_twin"
+		},
+		"Origin": {
+			"Type": "SPARK"
+		},
+		"FromTableName": "EMPLOYEE",
+		"ToTableName": "DAILY_ACTIVITY",
+		"ColumnRelationshipInformations": [
+			{
+				"FromColumnName": "employee_id",
+				"ToColumnName": "employee_id"
+			}
+		],
+		"RelationshipType": 0,
+		"PublishStatus": "PUBLISHED",
+		"ObjectVersion": 1,
+		"ObjectId": "bd5775a2-45b5-4ccd-94a3-88a9579f11b3"
+	},
+	"type": "RELATIONSHIP"
+}

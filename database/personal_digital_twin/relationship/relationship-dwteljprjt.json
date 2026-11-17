@@ -1,0 +1,26 @@
+{
+	"name": "relationship-dwteljprjt",
+	"properties": {
+		"Name": "relationship-dwteljprjt",
+		"EntityType": "RELATIONSHIP",
+		"Namespace": {
+			"DatabaseName": "personal_digital_twin"
+		},
+		"Origin": {
+			"Type": "SPARK"
+		},
+		"FromTableName": "DEPARTMENT",
+		"ToTableName": "EMPLOYEE",
+		"ColumnRelationshipInformations": [
+			{
+				"FromColumnName": "department_id",
+				"ToColumnName": "department_id"
+			}
+		],
+		"RelationshipType": 0,
+		"PublishStatus": "PUBLISHED",
+		"ObjectVersion": 1,
+		"ObjectId": "51fcec47-7b39-445c-8a7d-b0f41c49ee09"
+	},
+	"type": "RELATIONSHIP"
+}

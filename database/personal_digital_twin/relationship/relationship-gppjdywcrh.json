@@ -1,0 +1,26 @@
+{
+	"name": "relationship-gppjdywcrh",
+	"properties": {
+		"Name": "relationship-gppjdywcrh",
+		"EntityType": "RELATIONSHIP",
+		"Namespace": {
+			"DatabaseName": "personal_digital_twin"
+		},
+		"Origin": {
+			"Type": "SPARK"
+		},
+		"FromTableName": "DATE",
+		"ToTableName": "DAILY_ACTIVITY",
+		"ColumnRelationshipInformations": [
+			{
+				"FromColumnName": "date",
+				"ToColumnName": "date"
+			}
+		],
+		"RelationshipType": 0,
+		"PublishStatus": "PUBLISHED",
+		"ObjectVersion": 1,
+		"ObjectId": "c4af06c3-291d-4c7c-b9e5-9296b7bcb7c8"
+	},
+	"type": "RELATIONSHIP"
+}

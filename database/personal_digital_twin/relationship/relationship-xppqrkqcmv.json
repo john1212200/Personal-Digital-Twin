@@ -1,0 +1,26 @@
+{
+	"name": "relationship-xppqrkqcmv",
+	"properties": {
+		"Name": "relationship-xppqrkqcmv",
+		"EntityType": "RELATIONSHIP",
+		"Namespace": {
+			"DatabaseName": "personal_digital_twin"
+		},
+		"Origin": {
+			"Type": "SPARK"
+		},
+		"FromTableName": "DEPARTMENT",
+		"ToTableName": "DEPARTMENT_SUMMARY",
+		"ColumnRelationshipInformations": [
+			{
+				"FromColumnName": "department_id",
+				"ToColumnName": "department_id"
+			}
+		],
+		"RelationshipType": 0,
+		"PublishStatus": "PUBLISHED",
+		"ObjectVersion": 1,
+		"ObjectId": "362f671e-61bc-4a52-afb7-ec802e29277d"
+	},
+	"type": "RELATIONSHIP"
+}

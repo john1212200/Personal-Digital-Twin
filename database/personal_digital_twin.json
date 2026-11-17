@@ -1,0 +1,25 @@
+{
+	"name": "personal_digital_twin",
+	"properties": {
+		"Name": "personal_digital_twin",
+		"EntityType": "DATABASE",
+		"Origin": {
+			"Type": "SPARK"
+		},
+		"Properties": {
+			"IsSyMSCDMDatabase": true
+		},
+		"Source": {
+			"Provider": "ADLS",
+			"Location": "abfss://depitest1111systemfile@depitest1111.dfs.core.windows.net/",
+			"Properties": {
+				"FormatType": "csv",
+				"LinkedServiceName": "depitest1111workspace-WorkspaceDefaultStorage"
+			}
+		},
+		"PublishStatus": "PUBLISHED",
+		"ObjectVersion": 2,
+		"ObjectId": "c70931f8-efb3-47fc-a0cc-e5d8ea80e2c8"
+	},
+	"type": "DATABASE"
+}
