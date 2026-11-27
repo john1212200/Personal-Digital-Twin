@@ -1,0 +1,23 @@
+{
+	"name": "relationship-mtkczfcmua",
+	"properties": {
+		"Name": "relationship-mtkczfcmua",
+		"EntityType": "RELATIONSHIP",
+		"Namespace": {
+			"DatabaseName": "Database1"
+		},
+		"Origin": {
+			"Type": "SPARK"
+		},
+		"FromTableName": "DAILY_ACTIVITY",
+		"ToTableName": "DATE",
+		"ColumnRelationshipInformations": [
+			{
+				"FromColumnName": "DateKey",
+				"ToColumnName": "DateKey"
+			}
+		],
+		"RelationshipType": 0
+	},
+	"type": "RELATIONSHIP"
+}
