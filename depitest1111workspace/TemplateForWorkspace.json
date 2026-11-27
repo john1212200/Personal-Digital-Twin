@@ -478,7 +478,7 @@
 										"OriginDataTypeName": {
 											"TypeName": "long",
 											"IsComplexType": false,
-											"IsNullable": true,
+											"IsNullable": false,
 											"Properties": {
 												"HIVE_TYPE_STRING": "long"
 											}
@@ -631,12 +631,13 @@
 							"Properties": {
 								"Description": "",
 								"DisplayFolderInfo": "{\"name\":\"Others\",\"colorCode\":\"\"}",
-								"PrimaryKeys": "",
+								"PrimaryKeys": "DateKey",
 								"spark.sql.sources.provider": "csv"
 							},
 							"Retention": 0,
 							"Temporary": false,
-							"IsRewriteEnabled": false
+							"IsRewriteEnabled": false,
+							"Partitioning": {}
 						},
 						"Source": {
 							"Type": "SPARK"
@@ -910,6 +911,33 @@
 								{
 									"FromColumnName": "EmployeeID",
 									"ToColumnName": "EmployeeID"
+								}
+							],
+							"RelationshipType": 0,
+							"Properties": {}
+						},
+						"Source": {
+							"Type": "SPARK"
+						}
+					},
+					{
+						"ActionType": "CREATE",
+						"OldEntity": null,
+						"NewEntity": {
+							"Name": "relationship-mtkczfcmua",
+							"EntityType": "RELATIONSHIP",
+							"Namespace": {
+								"DatabaseName": "Database1"
+							},
+							"Origin": {
+								"Type": "SPARK"
+							},
+							"FromTableName": "DAILY_ACTIVITY",
+							"ToTableName": "DATE",
+							"ColumnRelationshipInformations": [
+								{
+									"FromColumnName": "DateKey",
+									"ToColumnName": "DateKey"
 								}
 							],
 							"RelationshipType": 0,
