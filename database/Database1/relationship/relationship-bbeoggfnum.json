@@ -1,0 +1,23 @@
+{
+	"name": "relationship-bbeoggfnum",
+	"properties": {
+		"Name": "relationship-bbeoggfnum",
+		"EntityType": "RELATIONSHIP",
+		"Namespace": {
+			"DatabaseName": "Database1"
+		},
+		"Origin": {
+			"Type": "SPARK"
+		},
+		"FromTableName": "EMPLOYEE",
+		"ToTableName": "DEPARTMENT",
+		"ColumnRelationshipInformations": [
+			{
+				"FromColumnName": "DepartmentID",
+				"ToColumnName": "DepartmentID"
+			}
+		],
+		"RelationshipType": 0
+	},
+	"type": "RELATIONSHIP"
+}

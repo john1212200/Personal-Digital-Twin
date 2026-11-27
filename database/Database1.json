@@ -11,7 +11,7 @@
 		},
 		"Source": {
 			"Provider": "ADLS",
-			"Location": "abfss://depitest1111systemfile@depitest1111.dfs.core.windows.net/Database1",
+			"Location": "abfss://depitest1111systemfile@depitest1111.dfs.core.windows.net/personal digital twin",
 			"Properties": {
 				"FormatType": "csv",
 				"LinkedServiceName": "depitest1111workspace-WorkspaceDefaultStorage"

@@ -1,0 +1,23 @@
+{
+	"name": "relationship-xoisbeiamn",
+	"properties": {
+		"Name": "relationship-xoisbeiamn",
+		"EntityType": "RELATIONSHIP",
+		"Namespace": {
+			"DatabaseName": "Database1"
+		},
+		"Origin": {
+			"Type": "SPARK"
+		},
+		"FromTableName": "DAILY_ACTIVITY",
+		"ToTableName": "EMPLOYEE",
+		"ColumnRelationshipInformations": [
+			{
+				"FromColumnName": "EmployeeID",
+				"ToColumnName": "EmployeeID"
+			}
+		],
+		"RelationshipType": 0
+	},
+	"type": "RELATIONSHIP"
+}
